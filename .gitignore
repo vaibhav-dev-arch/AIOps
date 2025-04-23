@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# Model files
+*.h5
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store 
