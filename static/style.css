@@ -1,0 +1,40 @@
+body {
+    background-color: #f8f9fa;
+}
+
+.container {
+    max-width: 1200px;
+}
+
+.card {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: none;
+    margin-bottom: 20px;
+}
+
+.card-title {
+    color: #2c3e50;
+    font-weight: 600;
+    margin-bottom: 20px;
+}
+
+.btn {
+    padding: 8px 20px;
+    font-weight: 500;
+}
+
+#plotDiv {
+    min-height: 400px;
+    width: 100%;
+    background-color: white;
+    border-radius: 4px;
+    padding: 15px;
+}
+
+.alert {
+    margin-bottom: 0;
+}
+
+textarea.form-control {
+    font-family: monospace;
+} 
