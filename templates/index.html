@@ -13,6 +13,10 @@
     <div class="container mt-5">
         <h1 class="text-center mb-4">Time Series Predictor</h1>
         
+        <div class="text-center mb-4">
+            <a href="/performance" class="btn btn-outline-primary">Go to Performance Predictor</a>
+        </div>
+        
         <div class="row">
             <div class="col-md-6">
                 <div class="card">
@@ -26,8 +30,13 @@
                             <label for="nSteps" class="form-label">Number of steps to predict:</label>
                             <input type="number" class="form-control" id="nSteps" value="10" min="1">
                         </div>
-                        <button class="btn btn-primary me-2" onclick="trainModel()">Train Model</button>
-                        <button class="btn btn-success" onclick="makePrediction()">Make Prediction</button>
+                        <div class="mb-3">
+                            <button class="btn btn-primary me-2" onclick="trainModel()">Train Model</button>
+                            <button class="btn btn-success me-2" onclick="makePrediction()">Make Prediction</button>
+                            <button class="btn btn-outline-primary me-2" onclick="exportData()">Export Data</button>
+                            <button class="btn btn-outline-primary" onclick="importData()">Import Data</button>
+                            <input type="file" id="importFile" style="display: none;" accept=".csv,.txt" onchange="handleFileImport(event)">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -110,6 +119,39 @@
                     alert('Error making prediction: ' + (error.responseJSON?.message || 'Unknown error'));
                 }
             });
+        }
+
+        function exportData() {
+            const data = $('#dataInput').val();
+            if (!data) {
+                alert('No data to export');
+                return;
+            }
+            
+            const blob = new Blob([data], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'time_series_data.csv';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        }
+
+        function importData() {
+            document.getElementById('importFile').click();
+        }
+
+        function handleFileImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                $('#dataInput').val(e.target.result);
+            };
+            reader.readAsText(file);
         }
     </script>
 </body>

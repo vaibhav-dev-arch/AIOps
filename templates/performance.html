@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Performance Predictor</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">Performance Predictor</h1>
+        
+        <div class="text-center mb-4">
+            <a href="/" class="btn btn-outline-primary">Go to Time Series Predictor</a>
+        </div>
+        
+        <ul class="nav nav-tabs mb-4" id="predictorTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="predict-tab" data-bs-toggle="tab" data-bs-target="#predict" type="button" role="tab">Predict</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="train-tab" data-bs-toggle="tab" data-bs-target="#train" type="button" role="tab">Train</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab">History</button>
+            </li>
+        </ul>
+        
+        <div class="tab-content" id="predictorTabsContent">
+            <!-- Predict Tab -->
+            <div class="tab-pane fade show active" id="predict" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">System Metrics</h5>
+                                <form id="predictionForm">
+                                    <div class="mb-3">
+                                        <label for="cpuLoad" class="form-label">CPU Load (0-100):</label>
+                                        <input type="range" class="form-range" id="cpuLoad" min="0" max="100" value="0">
+                                        <div class="d-flex justify-content-between">
+                                            <span>0%</span>
+                                            <span id="cpuLoadValue">0%</span>
+                                            <span>100%</span>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="memoryLoad" class="form-label">Memory Load (0-100):</label>
+                                        <input type="range" class="form-range" id="memoryLoad" min="0" max="100" value="0">
+                                        <div class="d-flex justify-content-between">
+                                            <span>0%</span>
+                                            <span id="memoryLoadValue">0%</span>
+                                            <span>100%</span>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="delay" class="form-label">Network Delay (ms):</label>
+                                        <input type="number" class="form-control" id="delay" min="0" value="0">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Error Codes:</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="error1000">
+                                            <label class="form-check-label" for="error1000">ERROR_1000</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="error1001">
+                                            <label class="form-check-label" for="error1001">ERROR_1001</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="error1002">
+                                            <label class="form-check-label" for="error1002">ERROR_1002</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="error1003">
+                                            <label class="form-check-label" for="error1003">ERROR_1003</label>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-primary" onclick="makePrediction()">Predict Root Cause</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Prediction Result</h5>
+                                <div id="predictionResult" class="alert alert-info">
+                                    Enter system metrics and click "Predict Root Cause" to see the prediction.
+                                </div>
+                                <div id="confidencePlot" style="height: 300px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Train Tab -->
+            <div class="tab-pane fade" id="train" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Training Data</h5>
+                                <div class="mb-3">
+                                    <label for="trainingData" class="form-label">Enter training data (CSV format):</label>
+                                    <textarea class="form-control" id="trainingData" rows="10" placeholder="CPU_LOAD,MEMORY_LOAD,DELAY,ERROR_1000,ERROR_1001,ERROR_1002,ERROR_1003,ROOT_CAUSE&#10;0,0,0,0,1,0,1,MEMORY&#10;1,1,0,1,0,1,0,NETWORK_DELAY"></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="epochs" class="form-label">Number of epochs:</label>
+                                    <input type="number" class="form-control" id="epochs" value="50" min="1">
+                                </div>
+                                <div class="mb-3">
+                                    <button type="button" class="btn btn-primary me-2" onclick="trainModel()">Train Model</button>
+                                    <button type="button" class="btn btn-outline-primary me-2" onclick="exportTrainingData()">Export Data</button>
+                                    <button type="button" class="btn btn-outline-primary" onclick="importTrainingData()">Import Data</button>
+                                    <input type="file" id="importFile" style="display: none;" accept=".csv" onchange="handleFileImport(event)">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Training Progress</h5>
+                                <div id="trainingStatus"></div>
+                                <div id="trainingPlot" style="height: 300px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- History Tab -->
+            <div class="tab-pane fade" id="history" role="tabpanel">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Prediction History</h5>
+                        <div class="table-responsive">
+                            <table class="table" id="historyTable">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>CPU Load</th>
+                                        <th>Memory Load</th>
+                                        <th>Delay</th>
+                                        <th>Errors</th>
+                                        <th>Prediction</th>
+                                        <th>Confidence</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                        <div class="mt-3">
+                            <button type="button" class="btn btn-outline-primary" onclick="exportHistory()">Export History</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Update range input values
+        $('#cpuLoad').on('input', function() {
+            $('#cpuLoadValue').text($(this).val() + '%');
+        });
+        
+        $('#memoryLoad').on('input', function() {
+            $('#memoryLoadValue').text($(this).val() + '%');
+        });
+
+        function makePrediction() {
+            const data = {
+                CPU_LOAD: parseInt($('#cpuLoad').val()),
+                MEMORY_LOAD: parseInt($('#memoryLoad').val()),
+                DELAY: parseInt($('#delay').val()),
+                ERROR_1000: $('#error1000').is(':checked') ? 1 : 0,
+                ERROR_1001: $('#error1001').is(':checked') ? 1 : 0,
+                ERROR_1002: $('#error1002').is(':checked') ? 1 : 0,
+                ERROR_1003: $('#error1003').is(':checked') ? 1 : 0
+            };
+
+            $.ajax({
+                url: '/performance/predict',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ data: data }),
+                success: function(response) {
+                    $('#predictionResult')
+                        .removeClass('alert-info alert-danger')
+                        .addClass('alert-success')
+                        .html(`<strong>Predicted Root Cause:</strong> ${response.prediction}`);
+                    
+                    // Update confidence plot
+                    const confidenceData = [{
+                        values: response.confidence,
+                        labels: response.classes,
+                        type: 'pie',
+                        name: 'Prediction Confidence'
+                    }];
+                    
+                    const layout = {
+                        title: 'Prediction Confidence',
+                        height: 300,
+                        margin: { t: 30, b: 0, l: 0, r: 0 }
+                    };
+                    
+                    Plotly.newPlot('confidencePlot', confidenceData, layout);
+                    
+                    // Add to history
+                    addToHistory(data, response);
+                },
+                error: function(error) {
+                    $('#predictionResult')
+                        .removeClass('alert-info alert-success')
+                        .addClass('alert-danger')
+                        .html(`<strong>Error:</strong> ${error.responseJSON?.message || 'Unknown error'}`);
+                }
+            });
+        }
+
+        function trainModel() {
+            const trainingData = $('#trainingData').val();
+            const epochs = parseInt($('#epochs').val());
+            
+            try {
+                const rows = trainingData.trim().split('\n');
+                const headers = rows[0].split(',');
+                const data = [];
+                const labels = [];
+                
+                for (let i = 1; i < rows.length; i++) {
+                    const values = rows[i].split(',');
+                    data.push(values.slice(0, -1).map(Number));
+                    labels.push(values[values.length - 1]);
+                }
+                
+                $('#trainingStatus').html('<div class="alert alert-info">Training in progress...</div>');
+                
+                $.ajax({
+                    url: '/performance/train',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ 
+                        data: data,
+                        labels: labels,
+                        epochs: epochs
+                    }),
+                    success: function(response) {
+                        $('#trainingStatus').html(
+                            '<div class="alert alert-success">Training completed successfully!</div>'
+                        );
+                        
+                        // Plot training history
+                        const trace1 = {
+                            y: response.history.loss,
+                            name: 'Training Loss',
+                            type: 'scatter'
+                        };
+                        
+                        const trace2 = {
+                            y: response.history.val_loss,
+                            name: 'Validation Loss',
+                            type: 'scatter'
+                        };
+                        
+                        const layout = {
+                            title: 'Training History',
+                            xaxis: { title: 'Epoch' },
+                            yaxis: { title: 'Loss' }
+                        };
+                        
+                        Plotly.newPlot('trainingPlot', [trace1, trace2], layout);
+                    },
+                    error: function(error) {
+                        $('#trainingStatus').html(
+                            `<div class="alert alert-danger">Error: ${error.responseJSON?.message || 'Unknown error'}</div>`
+                        );
+                    }
+                });
+            } catch (error) {
+                $('#trainingStatus').html(
+                    `<div class="alert alert-danger">Error: Invalid training data format</div>`
+                );
+            }
+        }
+
+        function addToHistory(data, response) {
+            const now = new Date().toLocaleString();
+            const errors = [];
+            if (data.ERROR_1000) errors.push('ERROR_1000');
+            if (data.ERROR_1001) errors.push('ERROR_1001');
+            if (data.ERROR_1002) errors.push('ERROR_1002');
+            if (data.ERROR_1003) errors.push('ERROR_1003');
+            
+            const row = `
+                <tr>
+                    <td>${now}</td>
+                    <td>${data.CPU_LOAD}%</td>
+                    <td>${data.MEMORY_LOAD}%</td>
+                    <td>${data.DELAY}ms</td>
+                    <td>${errors.join(', ') || 'None'}</td>
+                    <td>${response.prediction}</td>
+                    <td>${(Math.max(...response.confidence) * 100).toFixed(1)}%</td>
+                </tr>
+            `;
+            
+            $('#historyTable tbody').prepend(row);
+        }
+
+        function exportTrainingData() {
+            const data = $('#trainingData').val();
+            if (!data) {
+                alert('No data to export');
+                return;
+            }
+            
+            const blob = new Blob([data], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'training_data.csv';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        }
+
+        function importTrainingData() {
+            document.getElementById('importFile').click();
+        }
+
+        function handleFileImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                $('#trainingData').val(e.target.result);
+            };
+            reader.readAsText(file);
+        }
+
+        function exportHistory() {
+            const table = document.getElementById('historyTable');
+            const rows = Array.from(table.querySelectorAll('tr'));
+            
+            // Get headers
+            const headers = Array.from(rows[0].querySelectorAll('th'))
+                .map(th => th.textContent);
+            
+            // Get data rows
+            const data = rows.slice(1).map(row => 
+                Array.from(row.querySelectorAll('td'))
+                    .map(td => td.textContent)
+            );
+            
+            // Create CSV content
+            const csvContent = [
+                headers.join(','),
+                ...data.map(row => row.join(','))
+            ].join('\n');
+            
+            // Create and download file
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'prediction_history.csv';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        }
+    </script>
+</body>
+</html> 

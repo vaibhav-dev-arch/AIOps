@@ -8,68 +8,45 @@ import pandas as pd
 import plotly
 import plotly.graph_objects as go
 import json
-from models.time_series_model import TimeSeriesPredictor
+from models.performance_predictor import PerformancePredictor
 
 app = Flask(__name__, 
            template_folder='../templates',
            static_folder='../static')
 
 # Initialize the model
-model = TimeSeriesPredictor(sequence_length=10)
-
-def create_plot(historical_data, predictions, title="Time Series Prediction"):
-    """Create a plotly figure"""
-    fig = go.Figure()
-    
-    # Add historical data
-    fig.add_trace(go.Scatter(
-        y=historical_data,
-        mode='lines',
-        name='Historical Data',
-        line=dict(color='blue')
-    ))
-    
-    # Add predictions
-    if predictions is not None:
-        fig.add_trace(go.Scatter(
-            y=predictions,
-            mode='lines',
-            name='Predictions',
-            line=dict(color='red', dash='dash')
-        ))
-    
-    fig.update_layout(
-        title=title,
-        xaxis_title="Time",
-        yaxis_title="Value",
-        hovermode='x'
-    )
-    
-    return json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+performance_model = PerformancePredictor()
 
 @app.route('/')
 def home():
-    return render_template('index.html')
+    return render_template('main.html')
 
-@app.route('/train', methods=['POST'])
-def train():
+@app.route('/performance/train', methods=['POST'])
+def train_performance():
     try:
         # Get data from request
         data = request.json['data']
-        data = np.array(data, dtype=np.float32)
+        labels = request.json['labels']
+        epochs = request.json.get('epochs', 50)
+        
+        # Convert data to numpy array
+        X = np.array(data)
+        y = np.array(labels)
         
         # Train the model
-        history = model.train(data)
+        history = performance_model.train(X, y, epochs=epochs)
         
         # Save the model
-        model.save_model('models/trained_model.h5')
+        performance_model.save_model('models/performance_model.h5')
         
         return jsonify({
             'status': 'success',
-            'message': 'Model trained successfully',
+            'message': 'Performance model trained successfully',
             'history': {
                 'loss': [float(x) for x in history.history['loss']],
-                'val_loss': [float(x) for x in history.history['val_loss']]
+                'val_loss': [float(x) for x in history.history['val_loss']],
+                'accuracy': [float(x) for x in history.history['accuracy']],
+                'val_accuracy': [float(x) for x in history.history['val_accuracy']]
             }
         })
     except Exception as e:
@@ -78,29 +55,35 @@ def train():
             'message': str(e)
         }), 400
 
-@app.route('/predict', methods=['POST'])
-def predict():
+@app.route('/performance/predict', methods=['POST'])
+def predict_performance():
     try:
         # Get data from request
         data = request.json['data']
-        n_steps = request.json.get('n_steps', 10)
-        
-        data = np.array(data, dtype=np.float32)
         
         # Load model if exists
-        if os.path.exists('models/trained_model.h5'):
-            model.load_model('models/trained_model.h5')
+        if os.path.exists('models/performance_model.h5'):
+            performance_model.load_model('models/performance_model.h5')
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Model not trained yet. Please train the model first.'
+            }), 400
         
-        # Make predictions
-        predictions = model.predict_sequence(data, n_steps)
+        # Make prediction
+        prediction = performance_model.predict(data)
         
-        # Create plot
-        plot_json = create_plot(data, predictions)
+        if prediction['prediction'] == 'Model not trained':
+            return jsonify({
+                'status': 'error',
+                'message': 'Model not trained yet. Please train the model first.'
+            }), 400
         
         return jsonify({
             'status': 'success',
-            'predictions': predictions.tolist(),
-            'plot': plot_json
+            'prediction': prediction['prediction'],
+            'confidence': prediction['confidence'],
+            'classes': prediction['classes']
         })
     except Exception as e:
         return jsonify({
